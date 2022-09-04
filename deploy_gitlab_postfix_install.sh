@@ -70,9 +70,9 @@ if [ "${CHANGE}" == "yes" ] || [ "${CHANGE}" == "y" ]; then
 	read -r PORT
 	semanage port -a -t ssh_port_t -p tcp "${PORT}"
 	# ADD rule to firewalld
-	echo -e "\nIf you are using another firewall than firewallcmd add manually the rule for the new port ssh"
+	echo -e "\nIf you are using another firewall than firewalld add manually the rule for the new port ssh"
 	firewall-cmd --add-port="${PORT}"/tcp --permanent
-	echo -e "Reload firewalld rules"
+	echo -e "\nReload firewalld rules"
 	firewall-cmd --reload
 	echo -e "\nYou modify the configuration in /etc/ssh/sshd_config"
 	#Test if exist "Port" and search Port or #Port
