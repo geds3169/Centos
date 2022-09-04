@@ -34,20 +34,6 @@ else
 	exit 1
 fi
 #####################################################################
-# Make sure only root or wheel group user can run this script
-
-isWheel=$(getent group wheel | grep "$(whoami)")
-
-if [ "${LOGNAME}" == "root" ]; then
- echo "You are running the script as 'root'"
-elif [ "${isWheel}" != "" ]; then
- echo "You are running the script as 'wheel'"
-else
- echo -e "\nPlease run script as root or wheel group user."
- exit 2
-fi
-
-#####################################################################
 echo -e "\nThis script update system, install Postfix and Gitlab-ce\n\n"
 sleep 1
 
