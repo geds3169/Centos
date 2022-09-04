@@ -122,10 +122,12 @@ while :; do
 		read -r InputURL
 		break
     elif [ "${isCorrect}" == "yes" ] || [ "${isCorrect}" == "y" ]; then
-		echo -e "\nOk now we can install repository gitlab-ce from the script packages.gitlab.com"
+		echo -e "\nOk now we can install repository gitlab-ce from the script packages.gitlab.com" &
+		echo $!
+		echo $?
+		wait
 		curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | sudo bash
 		break
-		wait
 	else
 		break
     fi
