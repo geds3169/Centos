@@ -149,7 +149,7 @@ systemctl start sshd
 
 # Install Postfix
 echo -e "\nInstall Postfix (MTA - MAIL TRANSFER AGENT)"
-yum install postfix -y
+yum install postfix cyrus-sasl-lib cyrus-sasl-plain- y
 
 echo -e "\nStart Postfix"
 systemctl start postfix
