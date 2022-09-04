@@ -197,13 +197,15 @@ DIRECTORY="/etc/gitlab"
 cd "${DIRECTORY}"
 echo "$PWD"
 
-gitlab-rake "gitlab:password:reset"
+echo "This operation may take some time"
+gitlab-rake 'gitlab:password:reset[root]'
 
 sleep 2
 # Required step after editing the file /etc/gitlab/gitlab.rb
 echo -e "\nAfter editing the /etc/gitlab/gitlab.rb run gitlab-ctl reconfigure"
 echo -e "\nTo start the service run gitlab-ctl start"
 echo -e "\nTo stop the service run gitlab-ctl stop"
+echo -e "\nTo reset a git user run (password gitlab-rake 'gitlab:password:reset[git_username1]')"
 
 # How to configure SMTP
 echo -e "\nFor SMTP configuration show: \nhttps://docs.gitlab.com/omnibus/settings/smtp.html"
