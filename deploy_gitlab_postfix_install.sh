@@ -178,6 +178,8 @@ isInstalled="false"
 while [ "${isInstalled}" == "false" ]; do
 	if [ "${isCorrect}" == "yes" ] || [ "${isCorrect}" == "y" ]; then
 		echo -e "\nOk now we can install repository gitlab-ce from the script packages.gitlab.com"
+		echo -e "\e[01;31mThis operation may take a few minutes, If the machine goes to the standby screen, simply press [enter].\e[0m"
+		sleep 2
 		curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | bash
 		isInstalled="true"
 	else
