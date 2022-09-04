@@ -11,101 +11,158 @@
 # - Installer gitlab
 # - Ajoute les règles de firewall nécessaire (firewalld uniquement)
 #
-# Tester: Centos7
+# Tester: Centos7 but maybe can work in Fedora
 #
 # Required: 2 core mini
 #           2048 mo ram mini
 #			static ip and dns configured
 #			external rules firewall (pfsense (...) )
+#
+# To run the script: sudo bash ./deploy_gitlab_postfix_install.sh
+# Review: Christophe Garcia
 ####################################################################
 # PID Shell script
 echo "PID of this script: $$"
-
 #Name of script
 echo "The name of the script is : $0"
 #####################################################################
+# Prevent execution: test Os & Print information system
+if [ -f /etc/redhat-release ] ; then
+	cat /etc/redhat-release
+else
+	echo "Distribution is not supported"
+	exit 1
+fi
+#####################################################################
 # Make sure only root or wheel group user can run this script
-if [ "$(whoami)" != "root" ]; then
+
+isWheel=$(getent group wheel | grep "$(whoami)")
+
+if [ "${LOGNAME}" == "root" ]; then
  echo "You are running the script as 'root'"
-elif [ "$(whoami)" != "wheel" ]; then
+elif [ "${isWheel}" != "" ]; then
  echo "You are running the script as 'wheel'"
 else
- echo -e "\nPlease run script as root."
+ echo -e "\nPlease run script as root or wheel group user."
  exit 2
 fi
 
 #####################################################################
-
 echo -e "\nThis script update system, install Postfix and Gitlab-ce\n\n"
 sleep 1
 
-# Print information system
-sudo cat /etc/redhat-release
-
-
 echo -e "\nCleaning old entry"
-sudo yum clean all -y
+yum clean all -y
 
 echo -e "\nInstall GPG key elrepo"
-sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
 
 echo -e "\nInstall the ELRepo Repository"
 
-sudo rpm -Uvh https://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+rpm -Uvh https://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
 
 echo -e "\nUpdate sourcelist"
-sudo yum update -y
+yum update -y
 
 echo -e "\nEnabling the EPL repository"
-sudo yum install epel-release -y
+yum install epel-release -y
 
 # Upgrade kernel
 # https://lunux.net/how-to-install-the-elrepo-repository-on-rhel-6-7-8-and-centos-6-7-8/
 
 echo -e "\nInstall curl policy security and openssh-server and perl"
-sudo yum install -y curl policycoreutils-python.x86_64 openssh-server perl -y
+yum install -y curl policycoreutils-python.x86_64 openssh-server perl -y
 
+# Thx Christophe Garcia add config sshd
+cp -f /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 echo "Do you want to change the default port ssh (22) ? [y/n] : "
 read -r CHANGE
-if [ "${CHANGE}" == "yes" ] || [ "${CHANGE}" == "y" ]; then 
+if [ "${CHANGE}" == "yes" ] || [ "${CHANGE}" == "y" ]; then  
 	echo -e "\nSSH port currently in use"
 	semanage port -l | grep ssh
 	echo -e "\nFill the port : "
 	read -r PORT
-	sudo semanage port -a -t ssh_port_t -p tcp "${PORT}"
+	semanage port -a -t ssh_port_t -p tcp "${PORT}"
 	# ADD rule to firewalld
 	echo -e "\nIf you are using another firewall than firewallcmd add manually the rule for the new port ssh"
-	sudo firewall-cmd --add-port="{PORT}"/tcp --permanent
+	firewall-cmd --add-port="${PORT}"/tcp --permanent
 	echo -e "Reload firewalld rules"
-	sudo firewall-cmd --reload
-	echo -e "\nYou need to change the configuration in /etc/ssh/sshd_config"
-	echo "Next step is restart the service, run sudo systemctl restart sshd"
+	firewall-cmd --reload
+	echo -e "\nYou modify the configuration in /etc/ssh/sshd_config"
+	#Test if exist "Port" and search Port or #Port
+	ChangePort=$(cat /etc/ssh/sshd_config |nl -ba | grep "^.*[^#]Port[ \t][0-9]*$" |awk '{print $1}')
+	if [ "${ChangePort}" != "" ]; then
+			sed -i "${ChangePort}s/^(.*) [0-9]*$/\1 $PORT/" /etc/ssh/sshd_config
+	else
+		ChangePort=$(cat /etc/ssh/sshd_config |nl -ba | grep "^.*#Port[ \t]*[0-9]*$" |awk '{print $1}')
+		if [ "${ChangePort}" != "" ]; then
+			sed -i "${ChangePort}iPort $PORT" /etc/ssh/sshd_config
+		else
+			echo "Port $PORT" >> /etc/ssh/sshd_config
+		fi
+	fi
+	sshd -t
+	if [ $? -eq 0 ] ; then
+		systemctl restart sshd
+	else
+		echo "Houston we have a problem, please check your sshd_config file" 
+		exit 1
+	fi
 else
 	echo -e "OK, We continue the work"
 fi
 
+echo "Do you want to change to remove Root access ? [y/n] : "
+read -r RemoveRootAccess
+if [ "${RemoveRootAccess}" == "yes" ] || [ "${RemoveRootAccess}" == "y" ]; then 
+	PermitRootLogin=$(cat /etc/ssh/sshd_config |nl -ba | grep "^.*[^#\"]PermitRootLogin[ \t]*yes.*$" |awk '{print $1}')
+	if [ "${PermitRootLogin}" != "" ]; then
+			sed -i "${PermitRootLogin}s/^.*$/PermitRootLogin no/" /etc/ssh/sshd_config
+	else
+		PermitRootLogin=$(cat /etc/ssh/sshd_config |nl -ba | grep "^.*#PermitRootLogin.*$" |awk '{print $1}')
+		if [ "${PermitRootLogin}" != "" ]; then
+			sed -i "${PermitRootLogin}iPermitRootLogin no" /etc/ssh/sshd_config
+		else
+			echo "PermitRootLogin no" >> /etc/ssh/sshd_config
+		fi
+	fi
+	echo "For more security add at the bottom of the file"
+	echo "exemple:"
+	echo "AllowUsers username1 username2@192.168.10.30"
+	echo "AllowGroups group1 groupe2"
+	echo -e "\e[01;31mBefore modify PasswordAuthentication from yes to no, add a ssh key with passphrase\e[0m"
+	echo "https://www.man7.org/linux/man-pages/man5/sshd_config.5.html or type man sshd_config in your terminal"
+	sshd -t
+	if [ $? -eq 0 ] ; then
+		systemctl restart sshd
+	else
+		echo "Houston we have a problem, please check your sshd_config file" 
+		exit 1
+	fi
+fi
+
 echo -e "\nEnable sshd as service"
-sudo systemctl enable sshd
+systemctl enable sshd
 
 echo -e "\nStarting sshd"
-sudo systemctl start sshd
+systemctl start sshd
 
 # Install Postfix
 echo -e "\nInstall Postfix (MTA - MAIL TRANSFER AGENT)"
-sudo yum install postfix -y
+yum install postfix -y
 
 echo -e "\nStart Postfix"
-sudo systemctl start postfix
+systemctl start postfix
 
 echo -e "\nEnabling Postfix service"
-sudo systemctl enable postfix
+systemctl enable postfix
 
 # Add rule to firewalld
 echo -e "Add rule http/https/smtp to the firewalld"
-sudo firewall-cmd --zone=public --permanent --add-service=http
-sudo firewall-cmd --zone=public --permanent --add-service=https
-sudo firewall-cmd --zone=public --permanent --add-service=smtp
-sudo systemctl reload firewalld
+firewall-cmd --zone=public --permanent --add-service=http
+firewall-cmd --zone=public --permanent --add-service=https
+firewall-cmd --zone=public --permanent --add-service=smtps # Depends the use can change to smtp
+firewall-cmd --reload
 
 # Requires manual intervention
 echo -e "\nInstalling GitLab-ce\n"
@@ -113,28 +170,26 @@ echo -e "\nInstalling GitLab-ce\n"
 echo -e "\nFill in the full url like: http://exemple.com, or https where the gitlab will be accessible : "
 read -r InputURL
 
-echo -e "\nYou have input: ${InputURL} is this correct  ? [yes/no] : "
+echo -e "\nYou have input: ${InputURL} is this correct  ? [(y|yes)/(n|no)] : " # (n|no) or other key do no
 read -r isCorrect
 
-while :; do
-    if [ "${isCorrect}" == "no" ] || [ "${isCorrect}" == "n" ]; then
+# Thx Christophe Garcia
+isInstalled="false"
+while [ "${isInstalled}" == "false" ]; do
+	if [ "${isCorrect}" == "yes" ] || [ "${isCorrect}" == "y" ]; then
+		echo -e "\nOk now we can install repository gitlab-ce from the script packages.gitlab.com"
+		curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | bash
+		isInstalled="true"
+	else
         echo -e "\nFill again the full URL ? : "
 		read -r InputURL
-		break
-    elif [ "${isCorrect}" == "yes" ] || [ "${isCorrect}" == "y" ]; then
-		echo -e "\nOk now we can install repository gitlab-ce from the script packages.gitlab.com" &
-		echo $!
-		echo $?
-		wait
-		curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | sudo bash
-		break
-	else
-		break
+		echo -e "\nYou have input: ${InputURL} is this correct  ? [(y|yes)] : "
+		read -r isCorrect
     fi
 done
 
 echo -e "\nInstalling GitLab"
-sudo EXTERNAL_URL="${InputURL}" yum install gitlab-ce.x86_64 -y
+EXTERNAL_URL="${InputURL}" yum install gitlab-ce.x86_64 -y
 
 # Requires manual intervention
 echo -e "\nChanging the directory to change the root password of the gui web interface"
@@ -142,13 +197,13 @@ DIRECTORY="/etc/gitlab"
 cd "${DIRECTORY}"
 echo "$PWD"
 
-sudo gitlab-rake "gitlab:password:reset"
+gitlab-rake "gitlab:password:reset"
 
 sleep 2
 # Required step after editing the file /etc/gitlab/gitlab.rb
-echo -e "\nAfter editing the /etc/gitlab/gitlab.rb run sudo gitlab-ctl reconfigure"
-echo -e "\nTo start the service run sudo gitlab-ctl start"
-echo -e "\nTo stop the service run sudo gitlab-ctl stop"
+echo -e "\nAfter editing the /etc/gitlab/gitlab.rb run gitlab-ctl reconfigure"
+echo -e "\nTo start the service run gitlab-ctl start"
+echo -e "\nTo stop the service run gitlab-ctl stop"
 
 # How to configure SMTP
 echo -e "\nFor SMTP configuration show: \nhttps://docs.gitlab.com/omnibus/settings/smtp.html"
