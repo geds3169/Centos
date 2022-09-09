@@ -147,6 +147,7 @@ systemctl enable postfix
 echo -e "Add rule http/https/smtp to the firewalld"
 firewall-cmd --zone=public --permanent --add-service=http
 firewall-cmd --zone=public --permanent --add-service=https
+firewall-cmd --zone=public --permanent --add-port=5050/tcp
 firewall-cmd --reload
 
 # Requires manual intervention
