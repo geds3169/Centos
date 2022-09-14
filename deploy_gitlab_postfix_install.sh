@@ -197,3 +197,5 @@ echo -e "\nTo reset a git user run (password gitlab-rake 'gitlab:password:reset[
 
 # How to configure SMTP
 echo -e "\nFor SMTP configuration show: \nhttps://docs.gitlab.com/omnibus/settings/smtp.html"
+
+echo -e "\nEnd of the job"
