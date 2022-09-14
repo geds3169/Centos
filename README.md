@@ -1,4 +1,4 @@
-<h1 align="center">Gitlab and Postfix interactive installation/h1>   
+<h1 align="center">Gitlab and Postfix interactive installation</h1>   
 
 ##### requirement:  
 
@@ -21,12 +21,24 @@
 >     export http_proxy=http://"proxy_ip":"port_number"  
 >     export https_proxy=https://"proxy_ip":"port_number"    
 >     
->     *Squid uses port 3128*
+>     *Squid uses port 3128*   
+
+##### How to execute this script: 
+
+*sudo user*  
+sudo bash ./deploy_gitlab_postfix_install.sh  
+
+or  
+
+*root*  
+./deploy_gitlab_postfix_install.sh   
+
+##### Answer the different questions and have fun
 
 ---------
 ---------
    
-<h1 align="center">Kubernetes and nodes/h1>
+ <h1 align="center">Kubernetes and nodes</h1>  
 
 ##### Material resources:  
  -------------------------------------------------------
@@ -35,10 +47,15 @@
 |     Master    | master01.exemple.com  |4GB Ram, 2vcpus|
 |     Worker    | Worker01.exemple.com  |4GB Ram, 2vcpus|
 |     Worker    | Worker02.exemple.com  |4GB Ram, 2vcpus|
----------------------------------------------------------
-
-> Root or sudoer account  
+---------------------------------------------------------   
 
 ##### requirement:  
 
 > Root or sudoer account  
+> Network access  
+> It is better to have a valid domain name 
+> SSH pair key later for secure   
+
+### SCRIPTS ARE NOT FINISHED, DONT USE IT
+
+
