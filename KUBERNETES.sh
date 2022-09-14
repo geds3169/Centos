@@ -7,37 +7,43 @@
 # title: deploy kubernetes
 # Permet de:
 # - Installer Kubernetes
+# - kubectl-convert
 # - Ajoute les règles de firewall nécessaire (firewalld uniquement)
 #
 # Ne permet pas:
-# - La mise en place d'un cluster Kubernetes
+# - n'installe pas les Nodes
+# - n"installe pas Docker-ce
+# - n'installe pas Jenkins
+# - ne configure pas le fichier /etc/hosts
 #
 # Tester: Centos7 but maybe can work in Fedora
 #
 # Required: x64 Centos7
 #           root privileges
-#           a containerization engine (Docker), same machine or another
-#           Replace line 56 by correct NAME.DOMAIN
+#           Replace under # CHANGE THE VALUE FQDN #
 #           
 # To run the script: sudo bash ./deploy_kubernetes.sh
 #                    
 ####################################################################
 # PID Shell script
-echo "PID of this script: $$"
+echo -e "\nPID of this script: $$"
 #Name of script
-echo "The name of the script is : $0"
+echo -e "\nThe name of the script is : $0"
+#####################################################################
+title="deploy kubernetes"
+echo -e "\n\n\n${title}"
 #####################################################################
 # Prevent execution: test Os & Print information system
 if [ -f /etc/redhat-release ]; then
 	cat /etc/redhat-release
 else
-	echo "Distribution is not supported"
+	echo -e "\nDistribution is not supported"
 	exit 1
 fi
 #####################################################################
 # Make sure only root user can run this script
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 
+   echo -e "\nThis script must be run as root" 
    exit 1
 fi
 #####################################################################
@@ -46,16 +52,16 @@ sleep 1
 yum install -y update
 yum install -y curl policycoreutils-python.x86_64
 
+# This part is not used for the moment, need a fix
+: '
 ##########################################
 #       CHANGE THE VALUE FQDN            #
 ##########################################
 HOSTNAME="kubernetes.web-connectivity.fr"
 ##########################################
-#                                        #
-##########################################
 
-: '
-# Source function https://gist.github.com/irazasyed/a7b0a079e7727a4315b9 (many thanks)
+# Source function https://gist.github.com/irazasyed/a7b0a079e7727a4315b9 (many thanks)                                      
+
 function removehost() {
     if [ -n "$(grep $HOSTNAME /etc/hosts)" ]
     then
@@ -105,38 +111,82 @@ fi
 '
 
 # Update system
+echo -e "\ncheck update and update"
 yum check-update
 yum update -y
 
+# Install tools before
+echo -e "\nInstall some tools needed"
+sudo yum install -y curl wget net-tools dig ca-certificates curl apt-transport-http apt-transport-https
 
-# Install Repository
-touch /etc/yum.repos.d/kubernetes.repo
-tee -a /etc/yum.repos.d/kubernetes.repo <<EOF
-[kubernetes]
-name=Kubernetes
-baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-EOF
+# Download the lasted stable kebectl binary & checksum file with curl
+echo -e "\nDownload the lasted stable kebectl binary"
+# https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-using-native-package-management
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
 
-#Install kubelet, kubeadm, and kubectl
-sudo yum install -y kubelet kubeadm kubectl
+# Validate the binary against checksum file
+echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+# Check the the validity or quit the script
+if [ $? -eq 1 ] 
+then
+    echo -e "\n There seems to be a problem between the binary file and the control file."
+    # Script output in terminal after closing script
+    tput smcup
+    "$@"
+    status=$?
+    tput rmcup
+    exit $status
+fi
 
-# Enable and start service kubelet
-systemctl enable kubelet
-systemctl start kubelet
+#Install kubetcl
+echo -e "\nInstall kubetcl"
+install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-#Check success installation and depenency
-if [ $? -eq 0 ]; then
-   echo "Installation successs"
-else
-   echo "An error has occurred, the script will be exited, please take a look at your system"
+# Print the version
+echo -e "\nHere is the current version installed"
+kubectl version --client
+sleep 5
+
+# Show kubectl config
+echo -e "\nhere is the current kubectl config"
+kubectl cluster-info
+sleep 5
+
+# Install bash completion
+echo -e "\Install bash completion"
+yum install -y install bash-completion
+source /usr/share/bash-completion/bash_completion
+## Enable autocompletion for user and system
+echo
+echo 'source <(kubectl completion bash)' >>~/.bashrc
+kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+## Reload current session of Shell
+echo -e "\n Reloading the bash"
+exec bash
+
+# Install kubectl convert plugin
+echo -e "\nInstall kubectl convert plugin"
+## which allows you to convert manifests between different API versions. This can be particularly helpful to migrate manifests to a non-deprecated api version with newer Kubernetes release
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl-convert"
+## Validate the binary
+## Download the kubectl-convert checksum file
+curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl-convert.sha256"
+## Validate the output
+if [ $? -eq 1 ]; then
+	echo -e "\nThere seems to be a problem between the binary file and the control file."
+fi
+
+# Install kubectl-convert
+install -o root -g root -m 0755 kubectl-convert /usr/local/bin/kubectl-convert
+kubectl convert --help
+if [ $? -eq 1 ]; then
+	echo -e "\nAn error has occurred."
 fi
 
 # Configure Firewall
 #The nodes, containers, and pods need to be able to communicate across the cluster to perform their functions.
+echo -e "\nConfigure Firewall, opening the necessary ports"
 sudo firewall-cmd --permanent --add-port=6443/tcp
 sudo firewall-cmd --permanent --add-port=2379-2380/tcp
 sudo firewall-cmd --permanent --add-port=10250/tcp
@@ -145,43 +195,11 @@ sudo firewall-cmd --permanent --add-port=10252/tcp
 sudo firewall-cmd --permanent --add-port=10255/tcp
 sudo firewall-cmd --reload
 
-# Information for each worker node
-echo -e "\n\nEnter the following commands on each worker node\n"
-sleep 1
-echo "sudo firewall-cmd --permanent --add-port=10251/tcp"
-echo "sudo firewall-cmd --permanent --add-port=10255/tcp"
-echo -e "\nfirewall-cmd --reload\n"
-echo -e "\nMaybe you need to update Iptables (look the script line 160 - 166)\n"
-sleep 5
-
-# Update Iptables
-# Set the net.bridge.bridge-nf-call-iptables to '1' in your sysctl config file. This ensures that packets are properly processed by IP tables during filtering and port forwarding.
-#cat <<EOF > /etc/sysctl.d/k8s.conf
-#net.bridge.bridge-nf-call-ip6tables = 1
-#net.bridge.bridge-nf-call-iptables = 1
-#EOF
-#sysctl --system
-
-
-# Disable SWAP
-sudo sed -i '/swap/d' /etc/fstab
-sudo swapoff -a
-
-echo "Do you want the script to modify Selinux  ? [y/n] : "
-read -r CHANGE_SELINUX
-if [ "${CHANGE_SELINUX}" == "yes" ] || [ "${CHANGE_SELINUX}" == "y" ]; then 
-    # The containers need to access the host filesystem, modificate the SELinux to permissive mode permanently
-    sed -i s/^SELINUX=.*$/SELINUX=permissive/ /etc/selinux/config
-    setenforce 0
-    sleep 1
-    echo "Reboot manualy the system to save the changes permanently"
-    echo "Use the getenforce command to display the status of SELinux"
-    echo -e "\nThe task is accomplished, good day"
-    sleep 1
-    exit 0
-else
-    echo -e "\nThe containers need to access the host filesystem, modificate the SELinux to permissive mode permanently"
-    sleep 1
-    echo -e "\nThe task is accomplished, good day"
-    exit 0
-fi
+echo -e "\n\nhttps://kubernetes.io/docs/reference/ports-and-protocols/"
+sleep 2
+echo -e "\n\nhttps://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-using-native-package-management"
+sleep 2
+echo -e "\n\nhttps://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#verify-kubectl-configuration"
+sleep 2
+echo -e "\n\nThe task is accomplished, good day"
+exit 0
