@@ -124,9 +124,6 @@ EOF
 rpm --import https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 yum install -y http://mirror.centos.org/centos/7/os/x86_64/Packages/gnupg2-2.0.22-5.el7_5.x86_64.rpm
 
-# Update system
-yum install -y kubernetes.x86_64
-
 #Install kubelet, kubeadm, and kubectl
 sudo yum install -y kubelet kubeadm kubectl
 
