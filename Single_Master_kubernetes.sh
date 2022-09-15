@@ -97,7 +97,7 @@ function addhost() {
             echo "$HOSTNAME already exists : $(grep $HOSTNAME $ETC_HOSTS)"
         else
             echo "Adding $HOSTNAME to your $ETC_HOSTS";
-             -- sh -c -e "echo '$HOSTS_LINE' >> /etc/hosts";
+             -- sh -c -e "echo "$HOSTS_LINE" >> /etc/hosts";
 
             if [ -n "$(grep $HOSTNAME /etc/hosts)" ]
                 then
@@ -193,25 +193,27 @@ function firewall(){
 # Configure Firewall
 #The nodes, containers, and pods need to be able to communicate across the cluster to perform their functions.
 echo -e "\nConfigure Firewall, opening the necessary ports"
-port_tcp="179,2379-2380,5473,6443,10250,10251,10252,10255"
-port_udp="4789,8285,8472"
-firewall-cmd --permanent --add-port="${port_tcp}"/tcp --permanent
-firewall-cmd --permanent --add-port="${port_udp}"/udp --permanent
+port_tcp=(179 379-2380 5473 6443 10250 10251 10252 10255)
+port_udp="4789 8285 8472"
+for i in ${port_tcp[*]}
+do
+firewall-cmd --add-port="${port_tcp}"/tcp --permanent
+firewall-cmd --add-port="${port_udp}"/udp --permanent
 firewall-cmd --reload
+done
 
 echo -e "\nhere is the list of open ports\n"
-firewall-cmd --permanent --zone=public --list-ports 
+firewall-cmd --permanent --list-ports 
 }
 
 # Open port call the function
-firewall()
+firewall
 
 # Set SELinux in permissive mode (effectively disabling it)
 ## This is required to allow containers to access the host filesystem, which is needed by pod networks for example.
 ## You have to do this until SELinux support is improved in the kubelet.
 ## You can leave SELinux enabled if you know how to configure it but it may require settings that are not supported by kubeadm.
 
-echo -e "\nChanging Selinux to permissive mode, but you can change it later"
 setenforce 0
 sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 
@@ -253,12 +255,12 @@ source /usr/share/bash-completion/bash_completion
 echo
 echo 'source <(kubectl completion bash)' >>~/.bashrc
 kubectl completion bash | tee /etc/bash_completion.d/kubectl > /dev/null
-## Reload current session of Shell
-echo -e "\n Reloading the bash"
-exec bash
 
 sleep 2
 echo -e "\n\n\nNow go to the nodes and install container runtime"
 echo -e "\n\nThe master has been installed, Have a nice day"
 
+## Reload current session of Shell
+echo -e "\n Reloading the bash"
+exec bash
 exit 0
