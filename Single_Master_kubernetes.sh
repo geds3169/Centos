@@ -202,21 +202,22 @@ if [ $? -eq 1 ]; then
 	echo -e "\nAn error has occurred."
 fi
 
+function firewall(){
 # Configure Firewall
 #The nodes, containers, and pods need to be able to communicate across the cluster to perform their functions.
 echo -e "\nConfigure Firewall, opening the necessary ports"
-firewall-cmd --permanent --add-port=179/tcp
-firewall-cmd --permanent --add-port=2379-2380/tcp
-firewall-cmd --permanent --add-port=5473/tcp
-firewall-cmd --permanent --add-port=6443/tcp
-firewall-cmd --permanent --add-port=10250/tcp
-firewall-cmd --permanent --add-port=10251/tcp
-firewall-cmd --permanent --add-port=10252/tcp
-firewall-cmd --permanent --add-port=10255/tcp
-firewall-cmd --permanent --add-port=4789/udp
-firewall-cmd --permanent --add-port=8285/udp
-firewall-cmd --permanent --add-port=8472/udp
+port_tcp="179,2379-2380,5473,6443,10250,10251,10252,10255"
+port_udp="4789,8285,8472"
+firewall-cmd --permanent --add-port="${port_tcp}"/tcp --permanent
+firewall-cmd --permanent --add-port="${port_udp}"/udp --permanent
 firewall-cmd --reload
+
+echo -e "\nhere is the list of open ports\n"
+firewall-cmd --permanent --zone=public --list-ports 
+}
+
+# Open port call the function
+firewall()
 
 # Set SELinux in permissive mode (effectively disabling it)
 ## This is required to allow containers to access the host filesystem, which is needed by pod networks for example.
