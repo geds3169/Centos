@@ -117,7 +117,7 @@ yum update -y
 
 # Install tools before
 echo -e "\nInstall some tools needed"
-sudo yum install -y curl wget net-tools dig ca-certificates curl apt-transport-http apt-transport-https
+sudo yum install -y wget net-tools dig ca-certificates apt-transport-http apt-transport-https
 
 # Download the lasted stable kebectl binary & checksum file with curl
 echo -e "\nDownload the lasted stable kebectl binary"
