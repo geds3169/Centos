@@ -2,7 +2,7 @@
 #
 # Auteur : guilhem Schlosser
 # Date : Aout 2022
-# Nom du fichier: deploy_kubernetes.sh
+# Nom du fichier: Single_Master_kubernetes.sh
 # Version 1.0.0 :
 # title: deploy kubernetes
 # Permet de:
@@ -11,7 +11,7 @@
 # - Ajoute les règles de firewall nécessaire (firewalld uniquement)
 #
 # Ne permet pas:
-# - n'installe pas les Nodes
+# - n'installe pas les Nodes, (nécessite le second script)
 # - n"installe pas Docker-ce
 # - n'installe pas Jenkins
 # - ne configure pas le fichier /etc/hosts
@@ -23,7 +23,8 @@
 #           Replace under # CHANGE THE VALUE FQDN #
 #           
 # To run the script: sudo bash ./deploy_kubernetes.sh
-#                    
+#
+# NEED ALWAYS A FIX TO CHANGE THE /etc/hosts
 ####################################################################
 # PID Shell script
 echo -e "\nPID of this script: $$"
