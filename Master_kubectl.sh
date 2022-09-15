@@ -31,7 +31,10 @@ echo -e "\nPID of this script: $$"
 echo -e "\nThe name of the script is : $0"
 #####################################################################
 title="deploy kubernetes"
+subtitle="This installation is for a single control-plane cluster"
 echo -e "\n\n\n${title}"
+echo -e "\n\n${subtitle}\n"
+sleep 2
 #####################################################################
 # Prevent execution: test Os & Print information system
 if [ -f /etc/redhat-release ]; then
@@ -47,8 +50,19 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 #####################################################################
-echo -e "\nThis script update system, install Kubernetes-ce\n\n"
-sleep 1
+# Add repository kubernetes
+echo -e "Installing the repository kubernetes" 
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kubelet kubeadm kubectl
+EOF
+
+yum clean all && yum -y makecache
 yum install -y update
 yum install -y curl policycoreutils-python.x86_64
 
@@ -115,9 +129,12 @@ echo -e "\ncheck update and update"
 yum check-update
 yum update -y
 
+# Update the system
+yum -y install epel-release
+
 # Install tools before
 echo -e "\nInstall some tools needed"
-sudo yum install -y wget net-tools dig ca-certificates apt-transport-http apt-transport-https
+sudo yum install -y wget net-tools dig vim git ca-certificates apt-transport-http apt-transport-https
 
 # Download the lasted stable kebectl binary & checksum file with curl
 echo -e "\nDownload the lasted stable kebectl binary"
@@ -187,19 +204,59 @@ fi
 # Configure Firewall
 #The nodes, containers, and pods need to be able to communicate across the cluster to perform their functions.
 echo -e "\nConfigure Firewall, opening the necessary ports"
-sudo firewall-cmd --permanent --add-port=6443/tcp
-sudo firewall-cmd --permanent --add-port=2379-2380/tcp
-sudo firewall-cmd --permanent --add-port=10250/tcp
-sudo firewall-cmd --permanent --add-port=10251/tcp
-sudo firewall-cmd --permanent --add-port=10252/tcp
-sudo firewall-cmd --permanent --add-port=10255/tcp
-sudo firewall-cmd --reload
+firewall-cmd --permanent --add-port=179/tcp
+firewall-cmd --permanent --add-port=2379-2380/tcp
+firewall-cmd --permanent --add-port=5473/tcp
+firewall-cmd --permanent --add-port=6443/tcp
+firewall-cmd --permanent --add-port=10250/tcp
+firewall-cmd --permanent --add-port=10251/tcp
+firewall-cmd --permanent --add-port=10252/tcp
+firewall-cmd --permanent --add-port=10255/tcp
+firewall-cmd --permanent --add-port=4789/udp
+firewall-cmd --permanent --add-port=8285/udp
+firewall-cmd --permanent --add-port=8472/udp
+firewall-cmd --reload
 
-echo -e "\n\nhttps://kubernetes.io/docs/reference/ports-and-protocols/"
+# Set SELinux in permissive mode (effectively disabling it)
+## This is required to allow containers to access the host filesystem, which is needed by pod networks for example.
+## You have to do this until SELinux support is improved in the kubelet.
+## You can leave SELinux enabled if you know how to configure it but it may require settings that are not supported by kubeadm.
+echo -e "\nChanging Selinux to permissive mode, but you can change it later (read the script, line 14)"
+sudo setenforce 0
+sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+
+# Install kubeadm
+echo -e "\nInstalling kubelet and kubeadm"
+yum -y install kubelet kubeadm --disableexcludes=kubernetes
+
+# Turn off swap
+echo -e "\nTurning off the Swap improve performance"
+sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+sudo swapoff -a
+
+# Enable service kubelet
+echo -e "\nEnable service kubelet"
+sudo systemctl enable --now kubelet
+
+#Configure systctl
+
+sudo modprobe overlay
+sudo modprobe br_netfilter
+
+#Letting iptables see bridged traffic
+## As a requirement for your Linux Node’s iptables to correctly see bridged traffic.
+tee <<EOF > /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+sysctl --system
+
+echo -e "\nRestarting the kubelet "
+systemctl daemon-reload
+systemctl restart kubelet
+
 sleep 2
-echo -e "\n\nhttps://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-using-native-package-management"
-sleep 2
-echo -e "\n\nhttps://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#verify-kubectl-configuration"
-sleep 2
-echo -e "\n\nThe task is accomplished, good day"
+echo -e "\n\n\nNow go to the nodes and install container runtime"
+echo -e "\n\nThe master has been installed, Have a nice day"
+
 exit 0
