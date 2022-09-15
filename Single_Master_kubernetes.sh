@@ -171,18 +171,6 @@ echo -e "\nhere is the current kubectl config"
 kubectl cluster-info
 sleep 5
 
-# Install bash completion
-echo -e "\Install bash completion"
-yum install -y install bash-completion
-source /usr/share/bash-completion/bash_completion
-## Enable autocompletion for user and system
-echo
-echo 'source <(kubectl completion bash)' >>~/.bashrc
-kubectl completion bash | tee /etc/bash_completion.d/kubectl > /dev/null
-## Reload current session of Shell
-echo -e "\n Reloading the bash"
-exec bash
-
 # Install kubectl convert plugin
 echo -e "\nInstall kubectl convert plugin"
 ## which allows you to convert manifests between different API versions. This can be particularly helpful to migrate manifests to a non-deprecated api version with newer Kubernetes release
@@ -256,6 +244,18 @@ sysctl --system
 echo -e "\nRestarting the kubelet "
 systemctl daemon-reload
 systemctl restart kubelet
+
+# Install bash completion
+echo -e "\Install bash completion"
+yum install -y install bash-completion
+source /usr/share/bash-completion/bash_completion
+## Enable autocompletion for user and system
+echo
+echo 'source <(kubectl completion bash)' >>~/.bashrc
+kubectl completion bash | tee /etc/bash_completion.d/kubectl > /dev/null
+## Reload current session of Shell
+echo -e "\n Reloading the bash"
+exec bash
 
 sleep 2
 echo -e "\n\n\nNow go to the nodes and install container runtime"
