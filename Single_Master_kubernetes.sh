@@ -135,7 +135,6 @@ yum -y install epel-release
 
 # Install tools before
 echo -e "\nInstall some tools needed"
-yum install -y wget net-tools dig vim git ca-certificates apt-transport-http apt-transport-https
 
 # Download the lasted stable kebectl binary & checksum file with curl
 echo -e "\nDownload the lasted stable kebectl binary"
@@ -211,7 +210,8 @@ firewall()
 ## This is required to allow containers to access the host filesystem, which is needed by pod networks for example.
 ## You have to do this until SELinux support is improved in the kubelet.
 ## You can leave SELinux enabled if you know how to configure it but it may require settings that are not supported by kubeadm.
-echo -e "\nChanging Selinux to permissive mode, but you can change it later (read the script, line 14)"
+
+echo -e "\nChanging Selinux to permissive mode, but you can change it later"
 setenforce 0
 sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 
