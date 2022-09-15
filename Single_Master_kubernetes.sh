@@ -22,7 +22,7 @@
 #           root privileges
 #           Replace under # CHANGE THE VALUE FQDN #
 #           
-# To run the script: sudo bash ./deploy_kubernetes.sh
+# To run the script: sudo bash ./Single_Master_kubernetes.sh
 #
 # NEED ALWAYS A FIX TO CHANGE THE /etc/hosts
 ####################################################################
@@ -53,7 +53,7 @@ fi
 #####################################################################
 # Add repository kubernetes
 echo -e "Installing the repository kubernetes" 
-cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+cat <<EOF | tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
 baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
@@ -81,7 +81,7 @@ function removehost() {
     if [ -n "$(grep $HOSTNAME /etc/hosts)" ]
     then
         echo "$HOSTNAME Found in your $ETC_HOSTS, Removing now...";
-        sudo sed -i".bak" "/$HOSTNAME/d" $ETC_HOSTS
+        sed -i".bak" "/$HOSTNAME/d" $ETC_HOSTS
     elif [ -n "$(grep $IP /etc/hosts)" ]
         echo "$IP Found in your $ETC_HOSTS, Removing now...";
     else
@@ -97,7 +97,7 @@ function addhost() {
             echo "$HOSTNAME already exists : $(grep $HOSTNAME $ETC_HOSTS)"
         else
             echo "Adding $HOSTNAME to your $ETC_HOSTS";
-            sudo -- sh -c -e "echo '$HOSTS_LINE' >> /etc/hosts";
+             -- sh -c -e "echo '$HOSTS_LINE' >> /etc/hosts";
 
             if [ -n "$(grep $HOSTNAME /etc/hosts)" ]
                 then
@@ -135,7 +135,7 @@ yum -y install epel-release
 
 # Install tools before
 echo -e "\nInstall some tools needed"
-sudo yum install -y wget net-tools dig vim git ca-certificates apt-transport-http apt-transport-https
+yum install -y wget net-tools dig vim git ca-certificates apt-transport-http apt-transport-https
 
 # Download the lasted stable kebectl binary & checksum file with curl
 echo -e "\nDownload the lasted stable kebectl binary"
@@ -178,7 +178,7 @@ source /usr/share/bash-completion/bash_completion
 ## Enable autocompletion for user and system
 echo
 echo 'source <(kubectl completion bash)' >>~/.bashrc
-kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+kubectl completion bash | tee /etc/bash_completion.d/kubectl > /dev/null
 ## Reload current session of Shell
 echo -e "\n Reloading the bash"
 exec bash
@@ -223,8 +223,8 @@ firewall-cmd --reload
 ## You have to do this until SELinux support is improved in the kubelet.
 ## You can leave SELinux enabled if you know how to configure it but it may require settings that are not supported by kubeadm.
 echo -e "\nChanging Selinux to permissive mode, but you can change it later (read the script, line 14)"
-sudo setenforce 0
-sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+setenforce 0
+sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 
 # Install kubeadm
 echo -e "\nInstalling kubelet and kubeadm"
@@ -232,17 +232,17 @@ yum -y install kubelet kubeadm --disableexcludes=kubernetes
 
 # Turn off swap
 echo -e "\nTurning off the Swap improve performance"
-sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-sudo swapoff -a
+sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+swapoff -a
 
 # Enable service kubelet
 echo -e "\nEnable service kubelet"
-sudo systemctl enable --now kubelet
+systemctl enable --now kubelet
 
 #Configure systctl
 
-sudo modprobe overlay
-sudo modprobe br_netfilter
+modprobe overlay
+modprobe br_netfilter
 
 #Letting iptables see bridged traffic
 ## As a requirement for your Linux Node’s iptables to correctly see bridged traffic.
