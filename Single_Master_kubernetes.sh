@@ -104,10 +104,6 @@ yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 function_firewall
 systemctl stop firewalld
 
-# Network declaration for pods
-# private address ${MASTER} and pod network adress
-kubeadm init --apiserver-advertise-address="${MASTER}" --pod-network-cidr=10.0.0.0/16
-
 # Enable kubelet service
 systemctl enable --now kubelet
 
@@ -145,8 +141,17 @@ sudo swapoff -a
 # And then to disable swap on startup in /etc/fstab
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
-# Generate the config
-kubeadm init --v=5
+# Network declaration for pods
+# private address ${MASTER} and pod network adress
+kubeadm init --apiserver-advertise-address="${MASTER}" --pod-network-cidr=10.0.0.0/16 > init.out 
+
+# Create a folder if not exists
+mkdir -p /root/.kube
+
+# Create a link symbolik of the config
+if [ ! -L /root/.kube/config ]; then
+	ln -s /etc/kubernetes/admin.conf /root/.kube/config
+fi
 
 # Restart Firewall
 systemctl start firewalld
