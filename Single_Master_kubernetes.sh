@@ -21,7 +21,8 @@
 # Required: x64 Centos7
 #           root privileges
 #           Replace under # CHANGE THE VALUE FQDN #
-#           
+# 	    Enable IPv6 if you use comment line 29-31
+#           Change IP Master line 64
 # To run the script: sudo bash ./Single_Master_kubernetes.sh
 #
 # NEED ALWAYS A FIX TO CHANGE THE /etc/hosts
@@ -30,8 +31,8 @@
 function_firewall(){
 
 echo -e "\nConfigure Firewall, opening the necessary ports"
-port_tcp=(179 379-2380 5473 6443 10250 10251 10252 10255)
-port_udp=(4789 8285 8472)
+port_tcp=("179 379-2380 5473 6443 10250 10251 10252 10255")
+port_udp=("4789 8285 8472")
 for i in ${port_tcp[*]}
 do
 firewall-cmd --add-port="${i}"/tcp --permanent
@@ -50,9 +51,16 @@ firewall-cmd --permanent --list-ports
 title="Install Kubernetes on the master"
 echo -e "$\n\n\n\n{title}\n\n"
 
-########################################
+#####################################################
+#	Comment these lines if you want to use IPv6
+#####################################################
+echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf
+sysctl -p /etc/sysctl.conf 
+
+############################################
 #	REPLACE IP ADDRESS (private) MASTER
-########################################
+############################################
 MASTER="192.168.30.28"
 
 # Update system
@@ -108,40 +116,37 @@ cat << EOF | tee /etc/modules-load.d/k8s.config
 br_netfilter
 EOF
 
-cat << EOF | tee /etc/sysctl.d/k8s.config
+cat << EOF | tee /etc/sysctl.d/99-k8s.conf
 net.bridge.bridge-nf-call-ip6tables=1
 net.bridge.bridge-nf-call-iptables=1
 EOF
 
-sysctl -p /etc/sysctl.d/k8s.config
+sysctl -p /etc/sysctl.d/99-k8s.conf
 
 # Fix Kubernetes
-sed -i "s/cgroupDriver: systemd/cgroupDriver: cgroupfs/g" /var/lib/kubelet/config.yaml
+#sed -i "s/cgroupDriver: systemd/cgroupDriver: cgroupfs/g" /var/lib/kubelet/config.yaml
+
 systemctl daemon-reload
 systemctl restart kubelet
 
 
-tee -a /etc/docker/daemon.json <<EOF
+tee /etc/docker/daemon.json <<EOF
 {
         "exec-opts": ["native.cgroupdriver=systemd"]
 }
 EOF
 
 systemctl daemon-reload
-systemctl restart docker
+systemctl restart docker containerd
 
-cat << EOF | tee kubeadm-config.yaml
-# kubeadm-config.yaml
-kind: ClusterConfiguration
-apiVersion: kubeadm.k8s.io/v1beta3
-kubernetesVersion: v1.23.4
---
-kind: KubeletConfiguration
-apiVersion: kubelet.config.k8s.io/v1beta1
-cgroupDriver: cgroupfs
-EOF
+# First diasbale swap
+sudo swapoff -a
 
-kubeadm init --config kubeadm-config.yaml
+# And then to disable swap on startup in /etc/fstab
+sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+# Generate the config
+kubeadm init --v=5
 
 # Restart Firewall
 systemctl start firewalld
@@ -149,7 +154,7 @@ systemctl start firewalld
 #Si ça fail faire:
 # kubeadm reset puis y
 #puis a nouveau
-#kubeadm init
+#kubeadm init --v=5
 
 #Récupérer le code ou:
 # export KUBECONFIG=/etc/kubernetes/admin.config
