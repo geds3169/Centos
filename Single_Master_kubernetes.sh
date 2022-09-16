@@ -94,6 +94,7 @@ yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 
 # Call the function
 function_firewall
+systemctl stop firewalld
 
 # Network declaration for pods
 # private address ${MASTER} and pod network adress
@@ -112,7 +113,7 @@ net.bridge.bridge-nf-call-ip6tables=1
 net.bridge.bridge-nf-call-iptables=1
 EOF
 
-sysctl --system
+sysctl -p /etc/sysctl.d/k8s.config
 
 # Fix Kubernetes
 sed -i "s/cgroupDriver: systemd/cgroupDriver: cgroupfs/g" /var/lib/kubelet/config.yaml
@@ -129,7 +130,22 @@ EOF
 systemctl daemon-reload
 systemctl restart docker
 
-kubeadm init
+cat << EOF | tee kubeadm-config.yaml
+# kubeadm-config.yaml
+kind: ClusterConfiguration
+apiVersion: kubeadm.k8s.io/v1beta3
+kubernetesVersion: v1.23.4
+--
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+cgroupDriver: cgroupfs
+EOF
+
+kubeadm init --config kubeadm-config.yaml
+
+# Restart Firewall
+systemctl start firewalld
+
 #Si ça fail faire:
 # kubeadm reset puis y
 #puis a nouveau
@@ -143,3 +159,4 @@ kubeadm init
 # Pour s'assurer que les nodes sont bien remontés
 # Puis:
 # kubectl get pods --all-namespaces
+
