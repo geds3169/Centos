@@ -26,6 +26,25 @@
 #
 # NEED ALWAYS A FIX TO CHANGE THE /etc/hosts
 ####################################################################
+# Function to open the ports required by K8s
+function_firewall(){
+
+echo -e "\nConfigure Firewall, opening the necessary ports"
+port_tcp=(179 379-2380 5473 6443 10250 10251 10252 10255)
+port_udp=(4789 8285 8472)
+for i in ${port_tcp[*]}
+do
+firewall-cmd --add-port="${i}"/tcp --permanent
+done
+for i in ${port_udp[*]}
+do
+firewall-cmd --add-port="${i}"/udp --permanent
+done
+firewall-cmd --reload
+
+echo -e "\nhere is the list of open ports\n"
+firewall-cmd --permanent --list-ports 
+}
 
 #NODE MASTERS
 title="Install Kubernetes on the master"
@@ -73,6 +92,9 @@ sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 # Install K8s softwares
 yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 
+# Call the function
+function_firewall
+
 # Network declaration for pods
 # private address ${MASTER} and pod network adress
 kubeadm init --apiserver-advertise-address="${MASTER}" --pod-network-cidr=10.0.0.0/16
@@ -83,6 +105,7 @@ systemctl enable --now kubelet
 # Letting iptable see bridged traffic
 cat << EOF | tee /etc/modules-load.d/k8s.config
 br_netfilter
+EOF
 
 cat << EOF | tee /etc/sysctl.d/k8s.config
 net.bridge.bridge-nf-call-ip6tables=1
@@ -105,28 +128,6 @@ EOF
 
 systemctl daemon-reload
 systemctl restart docker
-
-# Function to open the ports required by K8s
-function_firewall(){
-
-echo -e "\nConfigure Firewall, opening the necessary ports"
-port_tcp=(179 379-2380 5473 6443 10250 10251 10252 10255)
-port_udp=(4789 8285 8472)
-for i in ${port_tcp[*]}
-do
-firewall-cmd --add-port="${i}"/tcp --permanent
-done
-for i in ${port_udp[*]}
-firewall-cmd --add-port="${i}"/udp --permanent
-done
-firewall-cmd --reload
-
-echo -e "\nhere is the list of open ports\n"
-firewall-cmd --permanent --list-ports 
-}
-
-# Call the function
-function_firewall
 
 kubeadm init
 #Si ça fail faire:
