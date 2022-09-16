@@ -111,13 +111,15 @@ function_firewall(){
 
 echo -e "\nConfigure Firewall, opening the necessary ports"
 port_tcp=(179 379-2380 5473 6443 10250 10251 10252 10255)
-port_udp="4789 8285 8472"
+port_udp=(4789 8285 8472)
 for i in ${port_tcp[*]}
 do
 firewall-cmd --add-port="${port_tcp}"/tcp --permanent
-firewall-cmd --add-port="${port_udp}"/udp --permanent
-firewall-cmd --reload
 done
+for i in ${port_udp[*]}
+firewall-cmd --add-port="${port_udp}"/udp --permanent
+done
+firewall-cmd --reload
 
 echo -e "\nhere is the list of open ports\n"
 firewall-cmd --permanent --list-ports 
