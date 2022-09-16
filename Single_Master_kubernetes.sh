@@ -37,12 +37,12 @@ echo -e "$\n\n\n\n{title}\n\n"
 MASTER="192.168.30.28"
 
 # Update system
-yum check-update
-yum update
+yum check-update -y
+yum update -y
 yum install -y epel-release curl policycoreutils-python.x86_64
 
 
-if [ "$(rpm -qf which docker)" != "" ]; then
+if [ "$(rpm -qf `which docker`)" != "" ]; then
 	echo "Docker is installed" ;
 else
 	echo "Docker isnot installed";
@@ -55,7 +55,7 @@ else
 fi
 
 # Install repository kubernetes
-at <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
 baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
