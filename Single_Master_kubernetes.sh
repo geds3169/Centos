@@ -66,7 +66,7 @@ MASTER="192.168.30.28"
 # Update system
 yum check-update -y
 yum update -y
-yum install -y epel-release curl policycoreutils-python.x86_64
+yum install -y install epel-release curl policycoreutils-python.x86_64
 
 
 if [ "$(rpm -qf `which docker`)" != "" ]; then
