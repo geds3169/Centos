@@ -2,7 +2,7 @@
 #
 # Auteur : guilhem Schlosser
 # Date : novembre 2023
-# Nom du fichier: JenkinsCenOS9.sh
+# Nom du fichier: JenkinsCentOS9.sh
 # Version 1.0.0 :
 # title: Self-hosted Jenkins
 # Permet de:
@@ -18,7 +18,7 @@
 #			static ip and dns configured
 #			external rules firewall (pfsense (...) )
 #
-# To run the script: sudo bash ./JenkinsCenOS9.sh
+# To run the script: sudo bash ./JenkinsCentOS9.sh
 ####################################################################
 # Prevent execution: test Os & Print information system
 if [ -f /etc/redhat-release ] ; then
