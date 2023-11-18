@@ -2,7 +2,7 @@
 #
 # Auteur : guilhem Schlosser
 # Date : novembre 2023
-# Nom du fichier: JenkinsCentOS9.sh
+# Nom du fichier: JenkinsCenOS9.sh
 # Version 1.0.0 :
 # title: Self-hosted Jenkins
 # Permet de:
@@ -18,7 +18,7 @@
 #			static ip and dns configured
 #			external rules firewall (pfsense (...) )
 #
-# To run the script: sudo bash ./JenkinsCentOS9.sh
+# To run the script: sudo bash ./JenkinsCenOS9.sh
 ####################################################################
 # Prevent execution: test Os & Print information system
 if [ -f /etc/redhat-release ] ; then
@@ -36,7 +36,7 @@ ip_address=$(hostname -I)
 #Return the host name
 hostname=$(hostname)
 #Return the Adminstrator password
-password_file="/var/lib/jenkins/secrets/initialAdminPassword"
+$password="$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)"
 #####################################################################
 # PID Shell script
 echo "PID of this script: $$"
@@ -95,13 +95,13 @@ sudo systemctl enable jenkins
 #Chek
 echo "${isStarted}"
 
-#Opening firewall
+#Opening firewall rules and restart
 echo -e "Add rule 8080/tcp to the firewalld"
 sudo firewall-cmd --add-port=8080/tcp --permanent
 sudo firewall-cmd --reload
-sudo firewall-cmd --list all
+sudo firewall-cmd --list-all | grep "8080"
 firewall-cmd --reload
 
 #How to
-echo -e "1) Copy the following password $password_file to unlock Jenkins"
-echo -e "2) Open the current $ip_address:8080 or http://$hostname:8080"
+echo -e "\n1) Copy the following password: "${password}" to unlock Jenkins (without "")"
+echo -e "\n2) Open the current ${ip_address}:8080 or http://${hostname}:8080"
