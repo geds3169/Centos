@@ -34,34 +34,14 @@ else
 fi
 #####################################################################
 
-# Cleaning old entry
-yum clean all -y
+# Active le gestionnaire de configuration CRB
+dnf config-manager --set-enabled crb
 
-#Install GPG key elrepo
-rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+# install epel-release RPM
+dnf install epel-release epel-next-release
 
-#Install the ELRepo Repository
-rpm -Uvh https://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
-
-#Update sourcelist
-yum update -y
-
-#Enabling the EPL repository
-yum install epel-release -y
-
-#Install curl policy security and openssh-server and perl"
-## Liste des paquets à installer
-packages=("curl" "policycoreutils-python.x86_64" "openssh-server" "perl")
-
-# Check si les paquets sont installés
-for package in "${packages[@]}"; do
-    if ! rpm -q "$package" > /dev/null 2>&1; then
-        # Installe le paquet s'il n'est pas présent
-        yum install -y "$package"
-    else
-        echo "$package est déjà installé."
-    fi
-done
+# Installation des dépendances
+sudo dnf install -y curl policycoreutils openssh-server perl
 
 # Config sshd, save and remove root access
 ## save inital config file
@@ -72,36 +52,59 @@ systemctl restart sshd
 #Enable and start sshd as service
 systemctl enable --now sshd
 
-# Install Postfix
-yum install postfix cyrus-sasl-lib cyrus-sasl-plain- y
-# Enable and Start Postfix"
-systemctl enable --now postfix
-
-# Add rule to firewalld
-echo -e "Add rule http/https/smtp to the firewalld"
-firewall-cmd --zone=public --permanent --add-service=http
-firewall-cmd --zone=public --permanent --add-service=https
-firewall-cmd --zone=public --permanent --add-port=5050/tcp
+# Configuration du firewall
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --permanent --add-port=5050/tcp
 firewall-cmd --reload
 
-# Installing GitLab-ce"
-# Définir l'URL par défaut
-InputURL="http://127.0.0.1"
+# Installation de postfix et activation en tant que service
+dnf install -y postfix
+systemctl enable --now postfix
 
-echo -e "\nInstalling GitLab"
-EXTERNAL_URL="${InputURL}" yum install gitlab-ce.x86_64 -y
-DIRECTORY="/etc/gitlab"
+# Ajout du repository GitLab CE
+tee /etc/yum.repos.d/gitlab_gitlab-ce.repo > /dev/null <<EOL
+[gitlab_gitlab-ce]
+name=gitlab_gitlab-ce
+baseurl=https://packages.gitlab.com/gitlab/gitlab-ce/el/8/\$basearch
+repo_gpgcheck=1
+gpgcheck=1
+enabled=1
+gpgkey=https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+       https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey/gitlab-gitlab-ce-3D645A26AB9FBD22.pub.gpg
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
 
-# Reset and change password Root, this operation may take some time
-gitlab-rake 'gitlab:password:reset[root]' PASSWORD='rootme'
+[gitlab_gitlab-ce-source]
+name=gitlab_gitlab-ce-source
+baseurl=https://packages.gitlab.com/gitlab/gitlab-ce/el/8/SRPMS
+repo_gpgcheck=1
+gpgcheck=1
+enabled=1
+gpgkey=https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+       https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey/gitlab-gitlab-ce-3D645A26AB9FBD22.pub.gpg
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+EOL
 
+# Installation de GitLab CE
+dnf install -y gitlab-ce
 
-# Required step after editing the file /etc/gitlab/gitlab.rb
-#After editing the /etc/gitlab/gitlab.rb run gitlab-ctl reconfigure"
-#To start the service run gitlab-ctl start"
-#To stop the service run gitlab-ctl stop"
-#To reset a git user run (password gitlab-rake 'gitlab:password:reset[git_username1]')"
-# How to configure SMTP
-#For SMTP configuration show: https://docs.gitlab.com/omnibus/settings/smtp.html"
+# Configuration du hostname
+hostnamectl set-hostname devops.home
 
-gitlab-ctl restart
+# Configuration de l'URL et du port dans le fichier de configuration GitLab
+sed -i "s|external_url 'http://gitlab.example.com'|external_url 'https://devops.home:5050'|g" /etc/gitlab/gitlab.rb
+
+# Configuration du mot de passe root
+sed -i "s|gitlab_rails['initial_root_password'] = nil|gitlab_rails['initial_root_password'] = 'rootme'|g" /etc/gitlab/gitlab.rb
+
+# Configuration de Let's Encrypt
+sed -i "s|# letsencrypt['enable'] = nil|letsencrypt['enable'] = true|g" /etc/gitlab/gitlab.rb
+sed -i "s|# letsencrypt['contact_emails'] = nil|letsencrypt['contact_emails'] = ['admin@example.com']|g" /etc/gitlab/gitlab.rb
+sed -i "s|# letsencrypt['auto_renew'] = nil|letsencrypt['auto_renew'] = true|g" /etc/gitlab/gitlab.rb
+
+# Reconfiguration de GitLab après modification du fichier de configuration
+gitlab-ctl reconfigure
