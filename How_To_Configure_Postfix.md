@@ -1,6 +1,6 @@
-# Configuration de Postfix avec Relay Gmail  
+# Configuration de Postfix avec Relay Gmail (Gitlab)
 
-======================================================================  
+===
 
 Ce guide détaille le processus d'intégration de Postfix avec le relay Gmail pour assurer des notifications e-mail dans GitLab.  
 
