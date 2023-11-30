@@ -38,7 +38,7 @@ fi
 dnf config-manager --set-enabled crb
 
 # install epel-release RPM
-dnf install epel-release epel-next-release
+dnf install epel-release epel-next-release -y
 
 # Installation des dépendances
 sudo dnf install -y curl policycoreutils openssh-server perl
