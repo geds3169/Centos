@@ -4,7 +4,7 @@
 # Script d'installation automatique de Gitea
 # Auteur: Guilhem Schlosser
 # Date de création: Decembre 2023
-# Usage: installation automatisé via fichier de réponse anaconda-ks.cfg
+# Usage: installation automatisée via fichier de réponse anaconda-ks.cfg
 # Distribution: CentOS 9
 # Nom du script: auto_deploy_gitea.sh
 #
@@ -13,18 +13,21 @@
 #
 # Why: simplement parce que Gitlab demande trop de ressources
 ####################################################################################
+
 # PID Shell script
 echo "PID of this script: $$"
-#Name of script
+# Name of script
 echo "The name of the script is : $0"
+
 #####################################################################
-# Prevent execution: test Os & Print information system
+# Prevent execution: test OS & Print information system
 if [ -f /etc/redhat-release ] ; then
-	cat /etc/redhat-release
+    cat /etc/redhat-release
 else
-	echo "Distribution is not supported"
-	exit 1
+    echo "Distribution is not supported"
+    exit 1
 fi
+
 #####################################################################
 # Récupération du nom d'hôte
 DOMAIN=$(hostname)
@@ -39,6 +42,12 @@ GITEA_PORT="3000"
 MYSQL_USER="gitea"
 MYSQL_PASSWORD="rootme"
 MYSQL_DATABASE="gitea"
+GITEA_BINARY="/usr/local/bin/gitea"
+
+# Vérification des dépendances
+command -v wget >/dev/null 2>&1 || { echo >&2 "Wget n'est pas installé. Abandon."; exit 1; }
+command -v gpg >/dev/null 2>&1 || { echo >&2 "GPG n'est pas installé. Abandon."; exit 1; }
+command -v mysql >/dev/null 2>&1 || { echo >&2 "MySQL n'est pas installé. Abandon."; exit 1; }
 
 # Création de l'utilisateur Git
 groupadd --system $GITEA_USER
@@ -54,20 +63,30 @@ adduser \
 # Téléchargement et extraction de Gitea
 mkdir -p $GITEA_CUSTOM
 chown $GITEA_USER:$GITEA_USER $GITEA_CUSTOM
-wget -O gitea https://dl.gitea.io/gitea/$GITEA_VERSION/gitea-$GITEA_VERSION-$GITEA_ARCH
-chmod +x gitea
-mv gitea $GITEA_CUSTOM/gitea
+wget -O $GITEA_BINARY https://dl.gitea.io/gitea/$GITEA_VERSION/gitea-$GITEA_VERSION-$GITEA_ARCH
+chmod +x $GITEA_BINARY
 
-# Copier le fichier d'exemple vers le fichier renommé
+# Téléchargement de la signature GPG
+wget -O $GITEA_BINARY.asc https://dl.gitea.io/gitea/$GITEA_VERSION/gitea-$GITEA_VERSION-$GITEA_ARCH.asc
+
+# Vérification de la signature GPG
+gpg --keyserver keys.openpgp.org --recv 7C9E68152594688862D62AF62D9AE806EC1592E2
+gpg --verify $GITEA_BINARY.asc $GITEA_BINARY
+
+# Téléchargement des scripts d'autocomplétion
+wget -O /usr/share/bash-completion/completions/gitea https://raw.githubusercontent.com/go-gitea/gitea/main/contrib/autocompletion/bash_autocomplete
+wget -O /usr/share/zsh/_gitea https://raw.githubusercontent.com/go-gitea/gitea/main/contrib/autocompletion/zsh_autocomplete
+
+# Copie du fichier d'exemple vers le fichier renommé
 cp "$GITEA_CUSTOM/gitea/gitea.example.ini" "$GITEA_CUSTOM/gitea/gitea.$DOMAIN.ini"
 
-# Ajouter l'extension .bak au fichier d'exemple
+# Ajout de l'extension .bak au fichier d'exemple
 mv "$GITEA_CUSTOM/gitea/gitea.example.ini" "$GITEA_CUSTOM/gitea/gitea.example.ini.bak"
 
-# Remplacer dynamiquement le placeholder DOMAIN dans le fichier renommé
+# Remplacement dynamique du placeholder DOMAIN dans le fichier renommé
 sed -i "s/;DOMAIN           = localhost/DOMAIN           = $DOMAIN/g" "$GITEA_CUSTOM/gitea/gitea.$DOMAIN.ini"
 
-# Copier le fichier renommé dans le répertoire de configuration principal
+# Copie du fichier renommé dans le répertoire de configuration principal
 cp "$GITEA_CUSTOM/gitea/gitea.$DOMAIN.ini" "$GITEA_CUSTOM/gitea/custom/conf/app.ini"
 
 sed -i "s/DB_TYPE  = sqlite3/DB_TYPE  = mysql/g" "$GITEA_CUSTOM/gitea/custom/conf/app.ini"
@@ -111,8 +130,8 @@ chmod 600 "$GITEA_CUSTOM/gitea/custom/conf/app.ini"
 chown -R $GITEA_USER:$GITEA_USER "$GITEA_CUSTOM/gitea/data"
 chmod 700 "$GITEA_CUSTOM/gitea/data"
 
-chown $GITEA_USER:$GITEA_USER "$GITEA_CUSTOM/gitea/gitea"
-chmod 700 "$GITEA_CUSTOM/gitea/gitea"
+chown $GITEA_USER:$GITEA_USER "$GITEA_BINARY"
+chmod 700 "$GITEA_BINARY"
 
 # Configuration du répertoire de travail de Gitea
 export GITEA_WORK_DIR=$GITEA_CUSTOM
@@ -136,7 +155,7 @@ Type=simple
 User=$GITEA_USER
 Group=$GITEA_USER
 WorkingDirectory=$GITEA_CUSTOM
-ExecStart=$GITEA_CUSTOM/gitea/gitea web -c $GITEA_CUSTOM/gitea/custom/conf/app.ini
+ExecStart=$GITEA_BINARY web -c $GITEA_CUSTOM/gitea/custom/conf/app.ini
 Restart=always
 Environment=USER=$GITEA_USER HOME=$GITEA_HOME GITEA_WORK_DIR=$GITEA_WORK_DIR
 
