@@ -78,12 +78,15 @@ sed -i "s/HTTP_PORT        = 3000/HTTP_PORT        = $GITEA_PORT/g" "$GITEA_CUST
 # Configuration SMTP (commentée par défaut)
 # Contenu de la configuration SMTP
 SMTP_CONFIG="
-[mailer]
-ENABLED = true
-#FROM = user@example.com
-#HOST = your_relay_server:587
-#USER = user@example.com
-#PASSWD = your_smtp_password
+#[mailer]
+#ENABLED        = true
+#HOST           = smtp.gmail.com:465 ; Remove this line for Gitea >= 1.18.0
+#SMTP_ADDR      = smtp.gmail.com
+#SMTP_PORT      = 465
+#FROM           = example.user@gmail.com
+#USER           = example.user
+#PASSWD         = `***`
+#PROTOCOL       = smtps
 "
 
 # Emplacement du fichier app.ini
