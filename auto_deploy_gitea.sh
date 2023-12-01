@@ -39,7 +39,6 @@ GITEA_PORT="3000"
 MYSQL_USER="gitea"
 MYSQL_PASSWORD="rootme"
 MYSQL_DATABASE="gitea"
-LOG_FILE="/root/gitea_installation.log"
 
 # Création de l'utilisateur Git
 groupadd --system $GITEA_USER
